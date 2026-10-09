@@ -11,6 +11,8 @@ import httpx
 from livekit import api
 from livekit.agents import llm, JobContext
 
+from .text_utils import to_english
+
 logger = logging.getLogger("agent-tools")
 
 BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000")
@@ -100,10 +102,9 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
 
     @llm.function_tool(
         description=(
-            "Register a marine freight inquiry with Eximple. "
-            "Call this immediately as soon as you have collected the required checklist: "
-            "company_name, pol (origin port or city), pod (destination port or country), cargo commodity, "
-            "load_type (FCL or LCL), and container_type (20GP/40GP/40HC/Reefer/ISO-Tank; or 'LCL'). "
+            "Register a marine freight inquiry with Eximple in English. "
+            "Call this immediately as soon as you have collected: company_name, pol, pod, cargo, load_type, container_type. "
+            "All arguments MUST be in English (e.g. 'Mundra', 'Jebel Ali', 'Cotton Yarn', '20GP'). "
             "DO NOT ask the customer for confirmation before calling this tool — call it immediately upon gathering details!"
         )
     )
@@ -124,9 +125,18 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
         """
         resolved_number = _resolve_caller_number()
         actual_wa_number = (whatsapp_number or resolved_number or "").strip()
+
+        # Enforce English representation for database storage
+        eng_company = to_english(company_name) or company_name.strip()
+        eng_pol = to_english(pol) or pol.strip()
+        eng_pod = to_english(pod) or pod.strip()
+        eng_cargo = to_english(cargo) or cargo.strip()
+        eng_container = to_english(container_type) or container_type.strip()
+        eng_notes = to_english(notes) if notes else None
+
         logger.info(
             "register_inquiry tool called: Caller=%s, Company=%s, POL=%s, POD=%s, Cargo=%s, Load=%s, Container=%s, WA_OptIn=%s, WA_Number=%s",
-            resolved_number, company_name, pol, pod, cargo, load_type, container_type, whatsapp_opt_in, actual_wa_number
+            resolved_number, eng_company, eng_pol, eng_pod, eng_cargo, load_type, eng_container, whatsapp_opt_in, actual_wa_number
         )
 
         payload = {
@@ -134,32 +144,30 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
             "caller_number": resolved_number,
             "whatsapp_opt_in": whatsapp_opt_in,
             "whatsapp_number": actual_wa_number if actual_wa_number and actual_wa_number != "unknown" else None,
-            "company_name": company_name.strip(),
-            "pol": pol.strip(),
-            "pod": pod.strip(),
-            "cargo": cargo.strip(),
+            "company_name": eng_company,
+            "pol": eng_pol,
+            "pod": eng_pod,
+            "cargo": eng_cargo,
             "load_type": load_type,
-            "container_type": container_type.strip(),
+            "container_type": eng_container,
             "inquiry_type": "full_inquiry",
-            "notes": notes.strip() if notes else None,
+            "notes": eng_notes,
         }
 
         # Fire and forget: Launch asynchronous task to send JSON to FastAPI
         asyncio.create_task(_dispatch_inquiry_to_backend(payload))
 
-        # Immediately return instruction to the LLM
+        # Immediately return instruction to the LLM (Do NOT repeat the entire inquiry)
         wa_ask = (
-            f"'Sir, क्या हम आपको इसी number पर WhatsApp पर rates भेज सकते हैं?' "
+            "Sir, क्या हम आपको इसी number पर WhatsApp पर rates भेज सकते हैं?"
             if resolved_number and resolved_number != "unknown"
-            else "'Sir, किस number पर हम आपको WhatsApp पर rates भेजें?' "
+            else "Sir, किस number पर हम आपको WhatsApp पर rates भेजें?"
         )
         return (
-            "STATUS: SUCCESS. Inquiry registered in Eximple system. "
-            "Now speak directly as Eximple's sales specialist in Devanagari Hindi + English: "
-            "1. State clearly that the inquiry is registered and summarize it: "
-            "'Done sir! मैंने [company_name] के लिए [pol in Devanagari] से [pod in Devanagari], [container_type] [cargo] की inquiry register कर दी है।' "
-            f"2. Proactively ask for WhatsApp permission: {wa_ask}"
-            "Do NOT say 'hamari sales team aapse contact karegi'. You ARE the sales rep!"
+            "STATUS: SUCCESS. Inquiry saved in Eximple database. "
+            "Now speak directly to the caller in Hindi: "
+            f"Say ONLY: 'Sir, आपकी inquiry note हो गई है! {wa_ask}' "
+            "DO NOT repeat the shipment details, ports, cargo, or company name! Keep it short and brisk."
         )
 
     @llm.function_tool(
@@ -190,23 +198,23 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
             session_id, pol, pod, cargo, load_type, container_type, company_name, whatsapp_opt_in, whatsapp_number, notes
         )
         payload = {}
-        if pol: payload["pol"] = pol.strip()
-        if pod: payload["pod"] = pod.strip()
-        if cargo: payload["cargo"] = cargo.strip()
+        if pol: payload["pol"] = to_english(pol) or pol.strip()
+        if pod: payload["pod"] = to_english(pod) or pod.strip()
+        if cargo: payload["cargo"] = to_english(cargo) or cargo.strip()
         if load_type: payload["load_type"] = load_type
-        if container_type: payload["container_type"] = container_type.strip()
-        if company_name: payload["company_name"] = company_name.strip()
+        if container_type: payload["container_type"] = to_english(container_type) or container_type.strip()
+        if company_name: payload["company_name"] = to_english(company_name) or company_name.strip()
         if whatsapp_opt_in is not None: payload["whatsapp_opt_in"] = whatsapp_opt_in
         if whatsapp_number: payload["whatsapp_number"] = whatsapp_number.strip()
-        if notes: payload["notes"] = notes.strip()
+        if notes: payload["notes"] = to_english(notes) if notes else None
 
         if payload:
             asyncio.create_task(_dispatch_inquiry_update_to_backend(session_id, payload))
 
         return (
-            "STATUS: SUCCESS. Inquiry updated with customer's details. "
-            "Acknowledge the update warmly in Devanagari Hindi + English: "
-            "'Got it sir! मैंने update कर दिया है। हमारी team 24 hours के अंदर rates निकाल कर share कर देगी।'"
+            "STATUS: SUCCESS. Inquiry updated in Eximple database. "
+            "Acknowledge the update briefly in Hindi: "
+            "'Noted sir! Update हो गया है। हमारी team 24 hours के अंदर rates निकाल कर share कर देगी।'"
         )
 
     @llm.function_tool(

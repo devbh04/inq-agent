@@ -72,7 +72,18 @@ async def _async_sync_update_to_bcp(bcp_id: str, updates: InquiryUpdate, phone: 
 async def save_inquiry(inquiry_data: InquiryCreate) -> InquiryRecord:
     """Save a newly created inquiry to Supabase or local store and sync to BCP."""
     import asyncio
-    record = InquiryRecord(**inquiry_data.model_dump())
+    from .services.text_utils import to_english
+
+    data = inquiry_data.model_dump()
+    data["company_name"] = to_english(data.get("company_name")) or data.get("company_name", "").strip()
+    data["pol"] = to_english(data.get("pol")) or data.get("pol", "").strip()
+    data["pod"] = to_english(data.get("pod")) or data.get("pod", "").strip()
+    data["cargo"] = to_english(data.get("cargo")) or data.get("cargo", "").strip()
+    data["container_type"] = to_english(data.get("container_type")) or data.get("container_type", "").strip()
+    if data.get("notes"):
+        data["notes"] = to_english(data.get("notes"))
+
+    record = InquiryRecord(**data)
     
     if supabase_client:
         try:
@@ -115,7 +126,13 @@ async def save_inquiry(inquiry_data: InquiryCreate) -> InquiryRecord:
 async def update_inquiry(inquiry_id: str, updates: InquiryUpdate) -> Optional[InquiryRecord]:
     """Update an existing inquiry record by ID and sync updates to BCP."""
     import asyncio
+    from .services.text_utils import to_english
+
     update_data = {k: v for k, v in updates.model_dump(exclude_unset=True).items() if v is not None}
+    for fld in ["company_name", "pol", "pod", "cargo", "container_type", "notes"]:
+        if fld in update_data and update_data[fld]:
+            update_data[fld] = to_english(update_data[fld]) or update_data[fld]
+
     update_data["updated_at"] = datetime.utcnow().isoformat()
 
     updated_record: Optional[InquiryRecord] = None
@@ -153,7 +170,13 @@ async def update_inquiry(inquiry_id: str, updates: InquiryUpdate) -> Optional[In
 async def update_inquiry_by_session(session_id: str, updates: InquiryUpdate) -> Optional[InquiryRecord]:
     """Update an existing inquiry record by session ID and sync updates to BCP."""
     import asyncio
+    from .services.text_utils import to_english
+
     update_data = {k: v for k, v in updates.model_dump(exclude_unset=True).items() if v is not None}
+    for fld in ["company_name", "pol", "pod", "cargo", "container_type", "notes"]:
+        if fld in update_data and update_data[fld]:
+            update_data[fld] = to_english(update_data[fld]) or update_data[fld]
+
     update_data["updated_at"] = datetime.utcnow().isoformat()
 
     updated_record: Optional[InquiryRecord] = None
