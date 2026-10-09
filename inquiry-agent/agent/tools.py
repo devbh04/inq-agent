@@ -91,6 +91,8 @@ async def _dispatch_vobiz_hangup(ctx: JobContext, delay_seconds: float = 3.2) ->
 def build_tools(ctx: JobContext, session_id: str, caller_number=None):
     """Factory creating LLM function tools bound to the active job and session context."""
 
+    is_registered = False
+
     def _resolve_caller_number() -> str:
         if callable(caller_number):
             val = caller_number()
@@ -108,7 +110,7 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
             "DO NOT ask the customer for confirmation before calling this tool — call it immediately upon gathering details!"
         )
     )
-    def register_inquiry(
+    async def register_inquiry(
         company_name: str,
         pol: str,
         pod: str,
@@ -123,6 +125,7 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
         Record the customer's freight inquiry.
         Runs entirely in the background so the agent never stalls.
         """
+        nonlocal is_registered
         resolved_number = _resolve_caller_number()
         actual_wa_number = (whatsapp_number or resolved_number or "").strip()
 
@@ -135,8 +138,8 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
         eng_notes = to_english(notes) if notes else None
 
         logger.info(
-            "register_inquiry tool called: Caller=%s, Company=%s, POL=%s, POD=%s, Cargo=%s, Load=%s, Container=%s, WA_OptIn=%s, WA_Number=%s",
-            resolved_number, eng_company, eng_pol, eng_pod, eng_cargo, load_type, eng_container, whatsapp_opt_in, actual_wa_number
+            "register_inquiry tool called (is_registered=%s): Caller=%s, Company=%s, POL=%s, POD=%s, Cargo=%s, Load=%s, Container=%s, WA_OptIn=%s, WA_Number=%s",
+            is_registered, resolved_number, eng_company, eng_pol, eng_pod, eng_cargo, load_type, eng_container, whatsapp_opt_in, actual_wa_number
         )
 
         payload = {
@@ -154,8 +157,12 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
             "notes": eng_notes,
         }
 
-        # Fire and forget: Launch asynchronous task to send JSON to FastAPI
-        asyncio.create_task(_dispatch_inquiry_to_backend(payload))
+        if is_registered:
+            logger.info("Session %s already registered. Routing to update_inquiry payload.", session_id)
+            asyncio.create_task(_dispatch_inquiry_update_to_backend(session_id, payload))
+        else:
+            is_registered = True
+            asyncio.create_task(_dispatch_inquiry_to_backend(payload))
 
         # Immediately return instruction to the LLM (Do NOT repeat the entire inquiry)
         wa_ask = (
@@ -166,8 +173,8 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
         return (
             "STATUS: SUCCESS. Inquiry saved in Eximple database. "
             "Now speak directly to the caller in Hindi: "
-            f"Say ONLY: 'Sir, आपकी inquiry note हो गई है! {wa_ask}' "
-            "DO NOT repeat the shipment details, ports, cargo, or company name! Keep it short and brisk."
+            f"Say EXACTLY AND ONLY: 'Sir, आपकी inquiry note हो गई है! {wa_ask}' "
+            "CRITICAL: DO NOT repeat any shipment details, company name, ports, cargo, or container types!"
         )
 
     @llm.function_tool(
@@ -178,7 +185,7 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
             "Call this immediately when the customer specifies a different WhatsApp number, declines WhatsApp, or corrects any detail."
         )
     )
-    def update_inquiry(
+    async def update_inquiry(
         pol: Optional[str] = None,
         pod: Optional[str] = None,
         cargo: Optional[str] = None,
@@ -224,7 +231,7 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
             "'haan disconnect kar do', 'yes', 'bye', 'thank you', or confirms they have no more shipments."
         )
     )
-    def hangup_call() -> str:
+    async def hangup_call() -> str:
         """Orderly disconnection of the live phone call via Vobiz SIP Trunk."""
         logger.info("hangup_call tool triggered: initiating Vobiz SIP disconnection.")
         # Trigger Vobiz SIP hangup with 6.5s grace period so full farewell speech completes cleanly

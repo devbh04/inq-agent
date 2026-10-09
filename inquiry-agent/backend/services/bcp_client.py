@@ -59,6 +59,10 @@ def normalize_phone_number(raw_phone: Optional[str]) -> Optional[str]:
     if not cleaned or cleaned.lower() == "unknown":
         return None
 
+    # Handle Indian mobile numbers with leading 0 (e.g., 09970239129 -> 9970239129)
+    if len(cleaned) == 11 and cleaned.startswith("0"):
+        cleaned = cleaned[1:]
+
     # If it is a 10-digit Indian mobile number without country code, prepend +91
     if len(cleaned) == 10 and not cleaned.startswith("+"):
         return f"+91{cleaned}"
@@ -68,6 +72,15 @@ def normalize_phone_number(raw_phone: Optional[str]) -> Optional[str]:
     if not cleaned.startswith("+"):
         return f"+{cleaned}"
     return cleaned
+
+
+def sanitize_company_name(name: str) -> str:
+    """Clean company name for BCP lookup (e.g., 'Entry Point.SH' -> 'Entry Point Sh')."""
+    if not name:
+        return ""
+    cleaned = re.sub(r"\.(?=[A-Za-z0-9])", " ", name)
+    cleaned = re.sub(r"[^\w\s\-&]", "", cleaned)
+    return re.sub(r"\s+", " ", cleaned).strip()
 
 
 def resolve_bcp_container_type(raw_type: Optional[str]) -> str:
@@ -124,11 +137,12 @@ async def sync_create_inquiry_to_bcp(record: InquiryRecord) -> Optional[Tuple[st
 
     canonical_container = resolve_bcp_container_type(record.container_type)
     containers = [{"type": canonical_container, "qty": 1}] if record.load_type == "FCL" else []
+    clean_company = sanitize_company_name(record.company_name) or record.company_name
 
     # Build modulated body matching BCP createInquiry schema
     body = {
-        "name": f"{record.company_name} - {record.pol} to {record.pod}",
-        "companyName": record.company_name,
+        "name": f"{clean_company} - {record.pol} to {record.pod}",
+        "companyName": clean_company,
         "phoneNumber": phone,
         "sourceChannel": "call",  # Explicitly stamp calling/voice agent channel
         "sourceAddress": phone,
@@ -211,8 +225,9 @@ async def sync_update_inquiry_to_bcp(
         body["phoneNumber"] = normalized_phone
 
     if updates.company_name:
-        body["companyName"] = updates.company_name
-        body["name"] = updates.company_name
+        clean_company = sanitize_company_name(updates.company_name) or updates.company_name
+        body["companyName"] = clean_company
+        body["name"] = clean_company
     if updates.pol:
         body["portOfLoading"] = updates.pol
     if updates.pod:
@@ -222,7 +237,12 @@ async def sync_update_inquiry_to_bcp(
         body["cargoDescription"] = updates.cargo
     if updates.load_type:
         body["containerLoadType"] = updates.load_type
-    if updates.container_type:
+        if updates.load_type == "LCL":
+            body["containers"] = []
+        elif updates.container_type:
+            canonical = resolve_bcp_container_type(updates.container_type)
+            body["containers"] = [{"type": canonical, "qty": 1}]
+    elif updates.container_type:
         canonical = resolve_bcp_container_type(updates.container_type)
         body["containers"] = [{"type": canonical, "qty": 1}]
     if updates.notes:

@@ -74,6 +74,24 @@ async def save_inquiry(inquiry_data: InquiryCreate) -> InquiryRecord:
     import asyncio
     from .services.text_utils import to_english
 
+    # 1. Idempotency Check: if session_id already exists, update the existing record
+    if supabase_client:
+        try:
+            res_check = supabase_client.table("inquiries").select("*").eq("session_id", inquiry_data.session_id).execute()
+            if res_check.data and len(res_check.data) > 0:
+                existing_id = res_check.data[0]["id"]
+                logger.info("Inquiry for session %s already exists in Supabase (%s). Redirecting to update.", inquiry_data.session_id, existing_id)
+                updates = InquiryUpdate(**inquiry_data.model_dump(exclude={"session_id"}))
+                return await update_inquiry(str(existing_id), updates)
+        except Exception as e:
+            logger.warning("Error checking existing session in Supabase: %s", e)
+
+    for inq in _inquiries_db:
+        if inq.session_id == inquiry_data.session_id:
+            logger.info("Inquiry for session %s already exists in cache (%s). Redirecting to update.", inquiry_data.session_id, inq.id)
+            updates = InquiryUpdate(**inquiry_data.model_dump(exclude={"session_id"}))
+            return await update_inquiry(str(inq.id), updates)
+
     data = inquiry_data.model_dump()
     data["company_name"] = to_english(data.get("company_name")) or data.get("company_name", "").strip()
     data["pol"] = to_english(data.get("pol")) or data.get("pol", "").strip()

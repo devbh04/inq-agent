@@ -169,6 +169,13 @@ async def entrypoint(ctx: JobContext) -> None:
     from_number = meta.get("from_number")
     custom_sip_headers = meta.get("sip_headers")
 
+    # If telephony metadata was empty, check if room name carries phone prefix (e.g. 09970239129_KYePqHfx4ueY)
+    if not phone_number or phone_number == "unknown":
+        prefix = room_name.split("_")[0]
+        if prefix and len(prefix) >= 10 and (prefix.isdigit() or (prefix.startswith("+") and prefix[1:].isdigit())):
+            phone_number = prefix
+            logger.info("Extracted caller phone number from room name prefix: %s", phone_number)
+
     call_direction = "outbound" if phone_number else "inbound"
     is_telephony = bool(phone_number)
 
@@ -179,6 +186,10 @@ async def entrypoint(ctx: JobContext) -> None:
             caller = attrs.get("sip.phoneNumber")
             if not caller and p.identity.startswith("sip_"):
                 caller = p.identity[4:]
+            if not caller:
+                clean_id = p.identity.replace("+", "")
+                if clean_id.isdigit() and len(clean_id) >= 10:
+                    caller = p.identity
             if caller:
                 phone_number = caller
                 cost_tracker.caller_identity = caller
