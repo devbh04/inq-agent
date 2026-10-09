@@ -15,6 +15,21 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  async rewrites() {
+    const backendTarget = process.env.INTERNAL_BACKEND_URL;
+    if (!backendTarget) return [];
+
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${backendTarget}/api/:path*`,
+      },
+      {
+        source: "/health",
+        destination: `${backendTarget}/health`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

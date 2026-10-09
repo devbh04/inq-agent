@@ -18,7 +18,9 @@ import {
 } from "lucide-react";
 
 export default function Home() {
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+  const backendUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL ??
+    (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "");
   const [activeTab, setActiveTab] = useState<DashboardTab>("inquiries");
   const [inquiriesCount, setInquiriesCount] = useState<number>(0);
   const [totalSpend, setTotalSpend] = useState<number>(0);
