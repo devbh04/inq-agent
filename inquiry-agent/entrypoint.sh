@@ -11,7 +11,7 @@ if [ "${MODE}" = "backend" ]; then
 
 elif [ "${MODE}" = "agent" ]; then
     echo "Starting LiveKit Agent Worker (production mode)..."
-    exec uv run python -m agent.main run
+    exec uv run python -m agent.main start
 
 elif [ "${MODE}" = "all" ]; then
     echo "Starting both FastAPI Backend and LiveKit Agent Worker..."
@@ -24,7 +24,7 @@ elif [ "${MODE}" = "all" ]; then
     sleep 2
     
     # Start Agent in foreground
-    uv run python -m agent.main run &
+    uv run python -m agent.main start &
     AGENT_PID=$!
 
     # Trap termination signals to gracefully shut down both processes
