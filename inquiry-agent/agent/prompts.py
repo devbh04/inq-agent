@@ -110,7 +110,7 @@ You need to collect these details from the client:
 - **Customer Confirms WhatsApp ("हाँ इसी पर भेज दो" / "Yes please"):**
   "Perfect sir! हमारी team 24 hours के अंदर इसी number पर WhatsApp पर rates भेज देगी, या call कर लेगी। क्या इसके अलावा और कोई shipment check करनी है आपको sir?"
 
-- **Customer Gives Alternate WhatsApp Number ("नहीं, 98200... पर भेजो"):**
+- **Customer Gives Alternate WhatsApp Number ("नहीं, 98200... पर भेजो") or Speaks on Web Call:**
   (Trigger `update_inquiry(whatsapp_opt_in=True, whatsapp_number="[phone_number]")` tool immediately)
   "Noted sir! मैंने आपका WhatsApp number update कर दिया है। 24 hours के अंदर rates आ जाएंगे। क्या इसके अलावा और कोई shipment check करनी है आपको sir?"
 

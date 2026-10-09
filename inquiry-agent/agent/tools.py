@@ -148,13 +148,17 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
         asyncio.create_task(_dispatch_inquiry_to_backend(payload))
 
         # Immediately return instruction to the LLM
+        wa_ask = (
+            f"'Sir, क्या हम आपको इसी number पर WhatsApp पर rates भेज सकते हैं?' "
+            if resolved_number and resolved_number != "unknown"
+            else "'Sir, किस number पर हम आपको WhatsApp पर rates भेजें?' "
+        )
         return (
             "STATUS: SUCCESS. Inquiry registered in Eximple system. "
             "Now speak directly as Eximple's sales specialist in Devanagari Hindi + English: "
             "1. State clearly that the inquiry is registered and summarize it: "
             "'Done sir! मैंने [company_name] के लिए [pol in Devanagari] से [pod in Devanagari], [container_type] [cargo] की inquiry register कर दी है।' "
-            "2. Proactively ask for WhatsApp permission: "
-            "'Sir, क्या हम आपको इसी number पर WhatsApp पर rates भेज सकते हैं?' "
+            f"2. Proactively ask for WhatsApp permission: {wa_ask}"
             "Do NOT say 'hamari sales team aapse contact karegi'. You ARE the sales rep!"
         )
 
