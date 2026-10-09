@@ -165,23 +165,26 @@ async def entrypoint(ctx: JobContext) -> None:
 
     # 1. Parse SIP metadata for outbound phone calls
     meta = extract_sip_metadata(ctx.job.metadata)
-    phone_number = meta.get("phone_number")
+    outbound_dial_phone = meta.get("phone_number")
     from_number = meta.get("from_number")
     custom_sip_headers = meta.get("sip_headers")
 
-    # If telephony metadata was empty, check if room name carries phone prefix (e.g. 09970239129_KYePqHfx4ueY)
-    if not phone_number or phone_number == "unknown":
+    is_outbound = bool(outbound_dial_phone)
+    caller_phone = outbound_dial_phone
+
+    # For inbound calls, detect caller number from room prefix for records/telemetry ONLY
+    if not is_outbound:
         prefix = room_name.split("_")[0]
         if prefix and len(prefix) >= 10 and (prefix.isdigit() or (prefix.startswith("+") and prefix[1:].isdigit())):
-            phone_number = prefix
-            logger.info("Extracted caller phone number from room name prefix: %s", phone_number)
+            caller_phone = prefix
+            logger.info("Inbound call: extracted caller phone number from room name prefix: %s", caller_phone)
 
-    call_direction = "outbound" if phone_number else "inbound"
-    is_telephony = bool(phone_number)
+    call_direction = "outbound" if is_outbound else "inbound"
+    is_telephony = is_outbound or bool(caller_phone)
 
     def _detect_caller_number(p):
-        nonlocal phone_number
-        if not phone_number or phone_number == "unknown":
+        nonlocal caller_phone
+        if not caller_phone or caller_phone == "unknown":
             attrs = dict(p.attributes or {})
             caller = attrs.get("sip.phoneNumber")
             if not caller and p.identity.startswith("sip_"):
@@ -191,7 +194,7 @@ async def entrypoint(ctx: JobContext) -> None:
                 if clean_id.isdigit() and len(clean_id) >= 10:
                     caller = p.identity
             if caller:
-                phone_number = caller
+                caller_phone = caller
                 cost_tracker.caller_identity = caller
                 logger.info("Identified inbound SIP caller number: %s", caller)
 
@@ -216,14 +219,14 @@ async def entrypoint(ctx: JobContext) -> None:
     cost_tracker = CallCostTracker(
         session_id=room_name,
         room_name=room_name,
-        caller_identity=phone_number or "web-participant",
+        caller_identity=caller_phone or "web-participant",
     )
 
     # 3. Construct Non-Blocking Function Tools with JobContext (using dynamic caller resolver)
     tools = build_tools(
         ctx=ctx,
         session_id=room_name,
-        caller_number=lambda: phone_number,
+        caller_number=lambda: caller_phone,
     )
 
     # 4. Agent Instance
@@ -363,12 +366,12 @@ async def entrypoint(ctx: JobContext) -> None:
         "आज किस route के लिए ocean freight check करना है आपको?"
     )
 
-    if phone_number:
-        logger.info("Dialing phone number %s via Vobiz SIP Trunk...", phone_number)
+    if is_outbound and outbound_dial_phone:
+        logger.info("Outbound call: Dialing phone number %s via Vobiz SIP Trunk...", outbound_dial_phone)
         call_success = await initiate_outbound_sip_call(
             lk_api=ctx.api,
             room_name=room_name,
-            phone_number=phone_number,
+            phone_number=outbound_dial_phone,
             from_number=from_number,
             custom_headers=custom_sip_headers,
         )
@@ -377,10 +380,10 @@ async def entrypoint(ctx: JobContext) -> None:
             ctx.shutdown(reason="outbound_dial_failed")
             return
 
-        logger.info("Call answered by %s. Introducing Shanaya with warm, instant speech...", phone_number)
+        logger.info("Call answered by %s. Introducing Shanaya with warm, instant speech...", outbound_dial_phone)
         await session.say(GREETING_TEXT, allow_interruptions=True)
     else:
-        logger.info("Inbound or WebRTC connection in room %s. Greeting caller...", room_name)
+        logger.info("Inbound or WebRTC connection in room %s. Greeting caller directly on line...", room_name)
         await session.say(GREETING_TEXT, allow_interruptions=True)
 
 
