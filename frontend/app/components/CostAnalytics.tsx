@@ -248,7 +248,7 @@ export default function CostAnalytics({ backendUrl }: CostAnalyticsProps) {
               <FileText className="w-3.5 h-3.5 text-[#0066ff]" />
               <span>Neural Voice (TTS)</span>
             </span>
-            <span className="text-[10px] font-mono text-[#0066ff]">Shanaya (Ritu)</span>
+            <span className="text-[10px] font-mono text-[#0066ff]">Shanaya (Simran)</span>
           </div>
           <div className="text-lg font-bold font-mono text-[#141414]">
             ₹{ttsCost.toFixed(4)}

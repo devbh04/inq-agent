@@ -58,7 +58,7 @@ BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000")
 def setup(proc: JobProcess) -> None:
     """
     Worker initialization function.
-    Configures Sarvam Saaras v4 STT and Bulbul v4 Flash TTS with Ritu (warm persona).
+    Configures Sarvam Saaras v4 STT and Bulbul v4 Flash TTS with Simran (sales persona).
     Prewarms the TTS WebSocket connection to eliminate TLS handshake latency.
     """
     logger.info("Initializing worker process and prewarming Sarvam models...")
@@ -87,11 +87,11 @@ def setup(proc: JobProcess) -> None:
         prompt=stt_prompt,
     )
 
-    # 2. Sarvam Bulbul v4 Flash TTS - Warm & Friendly 'Ritu' Profile
+    # 2. Sarvam Bulbul v4 Flash TTS - Engaging, Brisk & Low 'Simran' Sales Profile
     tts_model = os.getenv("SARVAM_TTS_MODEL", "bulbul:v4-flash")
-    speaker_choice = os.getenv("SARVAM_TTS_SPEAKER", "ritu_hi_customer_warm")
-    pace_choice = float(os.getenv("SARVAM_TTS_PACE", "1.10"))         # 1.10x: brisk, warm human tempo
-    temp_choice = float(os.getenv("SARVAM_TTS_TEMPERATURE", "0.65")) # 0.65: natural prosodic inflection
+    speaker_choice = os.getenv("SARVAM_TTS_SPEAKER", "simran_hi_sales")
+    pace_choice = float(os.getenv("SARVAM_TTS_PACE", "1.05"))         # 1.05x: brisk, engaging sales tempo
+    temp_choice = float(os.getenv("SARVAM_TTS_TEMPERATURE", "0.60")) # 0.60: natural prosodic inflection
 
     logger.info(
         "Configuring Sarvam TTS: model=%s, speaker=%s, pace=%.2f, temperature=%.2f",
