@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     BCP_VOICE_AGENT_KEY_STAGING: Optional[str] = None
 
     # Production environment
-    BCP_URL_PROD: str = "https://api.eximple.com"
+    BCP_URL_PROD: str = "https://backend.eximple.in"
     BCP_WEBHOOK_KEY_ID_PROD: str = "PROD"
     BCP_WEBHOOK_SECRET_PROD: Optional[str] = None
     BCP_VOICE_AGENT_KEY_PROD: Optional[str] = None
