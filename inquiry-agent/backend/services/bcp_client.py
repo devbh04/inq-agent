@@ -144,6 +144,7 @@ async def sync_create_inquiry_to_bcp(record: InquiryRecord) -> Optional[Tuple[st
         "name": f"{clean_company} - {record.pol} to {record.pod}",
         "companyName": clean_company,
         "phoneNumber": phone,
+        "status": "open",
         "sourceChannel": "call",  # Explicitly stamp calling/voice agent channel
         "sourceAddress": phone,
         "portOfLoading": record.pol,
