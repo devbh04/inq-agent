@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS public.inquiries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id TEXT NOT NULL,
     caller_number TEXT DEFAULT 'unknown',
+    whatsapp_opt_in BOOLEAN DEFAULT TRUE,       -- Customer agreed to receive rates and updates on WhatsApp
+    whatsapp_number TEXT,                       -- WhatsApp phone number (caller number or customer provided)
     company_name TEXT NOT NULL,
     pol TEXT NOT NULL,                          -- Port of Loading / Origin (e.g. Nhava Sheva / JNPT, Mundra)
     pod TEXT NOT NULL,                          -- Port of Discharge / Destination (e.g. Jebel Ali, Rotterdam)
@@ -30,11 +32,13 @@ CREATE TABLE IF NOT EXISTS public.inquiries (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Idempotent column additions for existing databases
+-- Idempotent column additions for existing databases (run this to migrate an existing DB)
 ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS load_type TEXT NOT NULL DEFAULT 'FCL';
 ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS transcript JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS caller_number TEXT DEFAULT 'unknown';
+ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS whatsapp_opt_in BOOLEAN DEFAULT TRUE;
+ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS whatsapp_number TEXT;
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_inquiries_session_id ON public.inquiries (session_id);

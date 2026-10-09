@@ -187,9 +187,21 @@ export default function InquiryFeed({ backendUrl }: InquiryFeedProps) {
                         {inq.load_type || "FCL"}
                       </span>
                     </div>
-                    <p className="text-xs text-[#6b7280]">
-                      Commodity: <span className="text-[#141414] font-medium">{inq.cargo}</span>
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                      <p className="text-xs text-[#6b7280]">
+                        Commodity: <span className="text-[#141414] font-medium">{inq.cargo}</span>
+                      </p>
+                      {inq.whatsapp_opt_in !== false ? (
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <MessageSquare className="w-2.5 h-2.5" />
+                          <span>WA: {inq.whatsapp_number || inq.caller_number || "Opted In"}</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-500 border border-gray-200">
+                          <span>WA: Declined</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex items-center space-x-2">

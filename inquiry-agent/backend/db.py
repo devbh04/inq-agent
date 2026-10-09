@@ -51,6 +51,8 @@ async def save_inquiry(inquiry_data: InquiryCreate) -> InquiryRecord:
                 if "load_type" in fallback_payload:
                     lt = fallback_payload.pop("load_type")
                     fallback_payload["notes"] = f"[{lt}] {fallback_payload.get('notes') or ''}".strip()
+                fallback_payload.pop("whatsapp_opt_in", None)
+                fallback_payload.pop("whatsapp_number", None)
                 res = supabase_client.table("inquiries").insert(fallback_payload).execute()
                 if res.data:
                     logger.info("Saved inquiry to Supabase with fallback payload: %s", record.id)

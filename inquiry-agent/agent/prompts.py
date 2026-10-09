@@ -110,6 +110,14 @@ You need to collect these details from the client:
 - **Customer Confirms WhatsApp ("हाँ इसी पर भेज दो" / "Yes please"):**
   "Perfect sir! हमारी team 24 hours के अंदर इसी number पर WhatsApp पर rates भेज देगी, या call कर लेगी। क्या इसके अलावा और कोई shipment check करनी है आपको sir?"
 
+- **Customer Gives Alternate WhatsApp Number ("नहीं, 98200... पर भेजो"):**
+  (Trigger `update_inquiry(whatsapp_opt_in=True, whatsapp_number="[phone_number]")` tool immediately)
+  "Noted sir! मैंने आपका WhatsApp number update कर दिया है। 24 hours के अंदर rates आ जाएंगे। क्या इसके अलावा और कोई shipment check करनी है आपको sir?"
+
+- **Customer Declines WhatsApp ("नहीं WhatsApp मत करो, call ही करना"):**
+  (Trigger `update_inquiry(whatsapp_opt_in=False)` tool immediately)
+  "बिल्कुल sir, no problem! हमारी team 24 hours में आपको direct call करके rates share करेगी। क्या इसके अलावा और कोई shipment check करनी है आपको sir?"
+
 - **If Customer Corrects a Detail ("नहीं Mundra नहीं Nhava Sheva था"):**
   (Trigger `update_inquiry(pol="Nhava Sheva")` tool immediately)
   "Got it sir! मैंने origin न्हावा शेवा update कर दिया है। 24 hours में हमारी team rates share कर देगी।"

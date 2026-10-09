@@ -114,6 +114,8 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
         cargo: str,
         load_type: Literal["FCL", "LCL"] = "FCL",
         container_type: str = "20GP",
+        whatsapp_opt_in: bool = True,
+        whatsapp_number: Optional[str] = None,
         notes: str = "",
     ) -> str:
         """
@@ -121,14 +123,17 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
         Runs entirely in the background so the agent never stalls.
         """
         resolved_number = _resolve_caller_number()
+        actual_wa_number = (whatsapp_number or resolved_number or "").strip()
         logger.info(
-            "register_inquiry tool called: Caller=%s, Company=%s, POL=%s, POD=%s, Cargo=%s, Load=%s, Container=%s",
-            resolved_number, company_name, pol, pod, cargo, load_type, container_type
+            "register_inquiry tool called: Caller=%s, Company=%s, POL=%s, POD=%s, Cargo=%s, Load=%s, Container=%s, WA_OptIn=%s, WA_Number=%s",
+            resolved_number, company_name, pol, pod, cargo, load_type, container_type, whatsapp_opt_in, actual_wa_number
         )
 
         payload = {
             "session_id": session_id,
             "caller_number": resolved_number,
+            "whatsapp_opt_in": whatsapp_opt_in,
+            "whatsapp_number": actual_wa_number if actual_wa_number and actual_wa_number != "unknown" else None,
             "company_name": company_name.strip(),
             "pol": pol.strip(),
             "pod": pod.strip(),
@@ -156,8 +161,9 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
     @llm.function_tool(
         description=(
             "Update or correct an existing marine freight inquiry during the call if the customer corrects any detail "
-            "(e.g., changes port from Mundra to Nhava Sheva, changes cargo, container type, company name, or provides an alternate WhatsApp number). "
-            "Call this immediately when the customer says 'ye wo nahi tha', 'Mundra nahi Nhava Sheva', etc."
+            "(e.g., changes port from Mundra to Nhava Sheva, changes cargo, container type, company name) "
+            "or updates their WhatsApp preference (e.g., provides a different WhatsApp number, or declines WhatsApp). "
+            "Call this immediately when the customer specifies a different WhatsApp number, declines WhatsApp, or corrects any detail."
         )
     )
     def update_inquiry(
@@ -167,15 +173,17 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
         load_type: Optional[Literal["FCL", "LCL"]] = None,
         container_type: Optional[str] = None,
         company_name: Optional[str] = None,
+        whatsapp_opt_in: Optional[bool] = None,
+        whatsapp_number: Optional[str] = None,
         notes: Optional[str] = None,
     ) -> str:
         """
-        Update the active session's freight inquiry with customer corrections.
+        Update the active session's freight inquiry with customer corrections or WhatsApp details.
         Runs entirely in the background.
         """
         logger.info(
-            "update_inquiry tool called: session=%s, POL=%s, POD=%s, Cargo=%s, Load=%s, Container=%s, Company=%s, Notes=%s",
-            session_id, pol, pod, cargo, load_type, container_type, company_name, notes
+            "update_inquiry tool called: session=%s, POL=%s, POD=%s, Cargo=%s, Load=%s, Container=%s, Company=%s, WA_OptIn=%s, WA_Number=%s, Notes=%s",
+            session_id, pol, pod, cargo, load_type, container_type, company_name, whatsapp_opt_in, whatsapp_number, notes
         )
         payload = {}
         if pol: payload["pol"] = pol.strip()
@@ -184,16 +192,17 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
         if load_type: payload["load_type"] = load_type
         if container_type: payload["container_type"] = container_type.strip()
         if company_name: payload["company_name"] = company_name.strip()
+        if whatsapp_opt_in is not None: payload["whatsapp_opt_in"] = whatsapp_opt_in
+        if whatsapp_number: payload["whatsapp_number"] = whatsapp_number.strip()
         if notes: payload["notes"] = notes.strip()
 
         if payload:
             asyncio.create_task(_dispatch_inquiry_update_to_backend(session_id, payload))
 
         return (
-            "STATUS: SUCCESS. Inquiry updated with customer's correction. "
-            "Acknowledge the correction warmly in Devanagari Hindi + English: "
-            "'Got it sir! मैंने update कर दिया है — [mention updated detail in Devanagari Hindi]. "
-            "हमारी team 24 hours के अंदर rates निकाल कर share कर देगी।'"
+            "STATUS: SUCCESS. Inquiry updated with customer's details. "
+            "Acknowledge the update warmly in Devanagari Hindi + English: "
+            "'Got it sir! मैंने update कर दिया है। हमारी team 24 hours के अंदर rates निकाल कर share कर देगी।'"
         )
 
     @llm.function_tool(

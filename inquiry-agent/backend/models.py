@@ -11,6 +11,8 @@ import uuid
 class InquiryCreate(BaseModel):
     session_id: str = Field(..., description="Unique LiveKit session / room ID")
     caller_number: Optional[str] = Field("unknown", description="Caller phone number or web identity")
+    whatsapp_opt_in: Optional[bool] = Field(True, description="Whether customer agreed to receive rates and updates on WhatsApp")
+    whatsapp_number: Optional[str] = Field(None, description="Customer WhatsApp phone number (if caller number or specified)")
     company_name: str = Field(..., description="Customer business name")
     pol: str = Field(..., description="Port of Loading or Origin Location")
     pod: str = Field(..., description="Port of Discharge or Destination Country/Port")
@@ -36,6 +38,8 @@ class InquiryUpdate(BaseModel):
     cargo: Optional[str] = None
     load_type: Optional[Literal["FCL", "LCL"]] = None
     container_type: Optional[str] = None
+    whatsapp_opt_in: Optional[bool] = None
+    whatsapp_number: Optional[str] = None
     status: Optional[str] = None
     notes: Optional[str] = None
 
