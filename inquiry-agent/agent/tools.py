@@ -30,6 +30,20 @@ async def _dispatch_inquiry_to_backend(payload: dict) -> None:
         logger.error("Failed to connect to backend at %s: %s", url, e)
 
 
+async def _dispatch_inquiry_update_to_backend(session_id: str, payload: dict) -> None:
+    """Background coroutine that patches inquiry updates to the FastAPI server."""
+    url = f"{BACKEND_API_URL.rstrip('/')}/api/inquiries/session/{session_id}"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.patch(url, json=payload)
+            if resp.is_success:
+                logger.info("Successfully updated inquiry in FastAPI backend: %s", resp.json())
+            else:
+                logger.error("Backend error updating inquiry (%d): %s", resp.status_code, resp.text)
+    except Exception as e:
+        logger.error("Failed to connect to backend to update inquiry at %s: %s", url, e)
+
+
 async def _dispatch_vobiz_hangup(ctx: JobContext, delay_seconds: float = 3.2) -> None:
     """
     Terminates the live telephony call via Vobiz SIP Trunk and tears down the session.
@@ -87,10 +101,10 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
     @llm.function_tool(
         description=(
             "Register a marine freight inquiry with Eximple. "
-            "Call this as soon as you have collected: company_name, pol (origin port or city), "
-            "pod (destination port or country), cargo commodity, load_type (FCL or LCL), "
-            "and container_type (if FCL specify 20GP/40GP/40HC/Reefer/ISO-Tank; if LCL pass 'LCL'), "
-            "and customer confirms they want to register it."
+            "Call this immediately as soon as you have collected the required checklist: "
+            "company_name, pol (origin port or city), pod (destination port or country), cargo commodity, "
+            "load_type (FCL or LCL), and container_type (20GP/40GP/40HC/Reefer/ISO-Tank; or 'LCL'). "
+            "DO NOT ask the customer for confirmation before calling this tool — call it immediately upon gathering details!"
         )
     )
     def register_inquiry(
@@ -131,10 +145,55 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
         # Immediately return instruction to the LLM
         return (
             "STATUS: SUCCESS. Inquiry registered in Eximple system. "
-            "Say immediately with upbeat warmth: 'Aapki inquiry Eximple system mein add ho gayi hai sir! "
-            "Hamari sales team best freight rates ke saath jald se jald aapse contact karegi. "
-            "Kya iske alawa aur koi shipment check karni hai aapko sir?' "
-            "Do NOT say there is any technical issue, delay, waiting, or problem."
+            "Now speak directly as Eximple's sales specialist in Devanagari Hindi + English: "
+            "1. State clearly that the inquiry is registered and summarize it: "
+            "'Done sir! मैंने [company_name] के लिए [pol in Devanagari] से [pod in Devanagari], [container_type] [cargo] की inquiry register कर दी है।' "
+            "2. Proactively ask for WhatsApp permission: "
+            "'Sir, क्या हम आपको इसी number पर WhatsApp पर rates भेज सकते हैं?' "
+            "Do NOT say 'hamari sales team aapse contact karegi'. You ARE the sales rep!"
+        )
+
+    @llm.function_tool(
+        description=(
+            "Update or correct an existing marine freight inquiry during the call if the customer corrects any detail "
+            "(e.g., changes port from Mundra to Nhava Sheva, changes cargo, container type, company name, or provides an alternate WhatsApp number). "
+            "Call this immediately when the customer says 'ye wo nahi tha', 'Mundra nahi Nhava Sheva', etc."
+        )
+    )
+    def update_inquiry(
+        pol: Optional[str] = None,
+        pod: Optional[str] = None,
+        cargo: Optional[str] = None,
+        load_type: Optional[Literal["FCL", "LCL"]] = None,
+        container_type: Optional[str] = None,
+        company_name: Optional[str] = None,
+        notes: Optional[str] = None,
+    ) -> str:
+        """
+        Update the active session's freight inquiry with customer corrections.
+        Runs entirely in the background.
+        """
+        logger.info(
+            "update_inquiry tool called: session=%s, POL=%s, POD=%s, Cargo=%s, Load=%s, Container=%s, Company=%s, Notes=%s",
+            session_id, pol, pod, cargo, load_type, container_type, company_name, notes
+        )
+        payload = {}
+        if pol: payload["pol"] = pol.strip()
+        if pod: payload["pod"] = pod.strip()
+        if cargo: payload["cargo"] = cargo.strip()
+        if load_type: payload["load_type"] = load_type
+        if container_type: payload["container_type"] = container_type.strip()
+        if company_name: payload["company_name"] = company_name.strip()
+        if notes: payload["notes"] = notes.strip()
+
+        if payload:
+            asyncio.create_task(_dispatch_inquiry_update_to_backend(session_id, payload))
+
+        return (
+            "STATUS: SUCCESS. Inquiry updated with customer's correction. "
+            "Acknowledge the correction warmly in Devanagari Hindi + English: "
+            "'Got it sir! मैंने update कर दिया है — [mention updated detail in Devanagari Hindi]. "
+            "हमारी team 24 hours के अंदर rates निकाल कर share कर देगी।'"
         )
 
     @llm.function_tool(
@@ -155,4 +214,4 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
             "Do NOT say anything else or mention lines cutting."
         )
 
-    return [register_inquiry, hangup_call]
+    return [register_inquiry, update_inquiry, hangup_call]

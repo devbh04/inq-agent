@@ -96,6 +96,38 @@ async def update_inquiry(inquiry_id: str, updates: InquiryUpdate) -> Optional[In
     return updated_record
 
 
+async def update_inquiry_by_session(session_id: str, updates: InquiryUpdate) -> Optional[InquiryRecord]:
+    """Update an existing inquiry record by session ID."""
+    update_data = {k: v for k, v in updates.model_dump(exclude_unset=True).items() if v is not None}
+    update_data["updated_at"] = datetime.utcnow().isoformat()
+
+    updated_record: Optional[InquiryRecord] = None
+
+    if supabase_client:
+        try:
+            res = supabase_client.table("inquiries").update(update_data).eq("session_id", session_id).execute()
+            if res.data and len(res.data) > 0:
+                logger.info("Updated inquiry in Supabase for session: %s", session_id)
+                # pyrefly: ignore [bad-unpacking]
+                updated_record = InquiryRecord(**res.data[0])
+        except Exception as e:
+            logger.warning("Supabase update by session error: %s. Falling back to local update.", e)
+
+    # Update in-memory record
+    for i, inq in enumerate(_inquiries_db):
+        if str(inq.session_id) == str(session_id):
+            curr = inq.model_dump()
+            curr.update({k: v for k, v in update_data.items() if k != "updated_at"})
+            curr["updated_at"] = datetime.utcnow()
+            new_record = InquiryRecord(**curr)
+            _inquiries_db[i] = new_record
+            if not updated_record:
+                updated_record = new_record
+            break
+
+    return updated_record
+
+
 async def get_all_inquiries() -> List[InquiryRecord]:
     """Retrieve all inquiries sorted by creation date."""
     if supabase_client:
