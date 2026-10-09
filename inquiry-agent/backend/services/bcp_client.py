@@ -187,6 +187,47 @@ async def sync_create_inquiry_to_bcp(record: InquiryRecord) -> Optional[Tuple[st
                     "Successfully replicated inquiry to BCP | bcp_id=%s | srn=%s",
                     bcp_id, srn
                 )
+
+                # Step 2: Immediate final submission PUT to transition incoming -> open,
+                # matching BCP's intake state machine contract (?isFinalSubmit=true).
+                try:
+                    put_url = f"{base_url}/whatsapp-agent/inquiries/{bcp_id}?isFinalSubmit=true"
+                    put_body = {
+                        "phoneNumber": phone,
+                        "companyName": clean_company,
+                        "name": f"{clean_company} - {record.pol} to {record.pod}",
+                        "portOfLoading": record.pol,
+                        "portOfDestination": record.pod,
+                        "descriptionOfGoods": record.cargo,
+                        "cargoDescription": record.cargo,
+                        "containerLoadType": record.load_type,
+                        "containers": containers,
+                        "services": [MARINE_FREIGHT_SERVICE_ID],
+                        "remarks": f"[Voice Agent Session {record.session_id}] {record.notes or ''}".strip(),
+                    }
+                    if secret and key_id:
+                        put_headers, put_bytes = build_signed_headers(put_body, secret, key_id)
+                    else:
+                        put_headers = {
+                            "Content-Type": "application/json",
+                            "x-voice-agent-key": settings.bcp_voice_agent_key or "eximple_voice_agent_internal_secret_key_2026",
+                        }
+                        put_bytes = json.dumps(put_body).encode("utf-8")
+
+                    put_resp = await client.put(put_url, content=put_bytes, headers=put_headers)
+                    if put_resp.status_code in (200, 201):
+                        logger.info(
+                            "Successfully promoted inquiry %s to 'open' via ?isFinalSubmit=true",
+                            bcp_id
+                        )
+                    else:
+                        logger.warning(
+                            "Final submit promotion returned non-success (%d): %s",
+                            put_resp.status_code, put_resp.text[:500]
+                        )
+                except Exception as put_exc:
+                    logger.warning("Error promoting inquiry %s to 'open': %s", bcp_id, put_exc)
+
                 return (str(bcp_id), str(srn))
             else:
                 logger.warning(
@@ -206,7 +247,8 @@ async def sync_create_inquiry_to_bcp(record: InquiryRecord) -> Optional[Tuple[st
 async def sync_update_inquiry_to_bcp(
     bcp_inquiry_id: str,
     updates: InquiryUpdate,
-    phone: Optional[str] = None
+    phone: Optional[str] = None,
+    is_final_submit: bool = False,
 ) -> bool:
     """
     Modulate and dispatch live inquiry updates to BCP via PUT /whatsapp-agent/inquiries/:id.
@@ -219,6 +261,8 @@ async def sync_update_inquiry_to_bcp(
     secret = settings.bcp_webhook_secret
     key_id = settings.bcp_webhook_key_id
     url = f"{base_url}/whatsapp-agent/inquiries/{bcp_inquiry_id}"
+    if is_final_submit:
+        url += "?isFinalSubmit=true"
 
     body: Dict[str, Any] = {}
     normalized_phone = normalize_phone_number(updates.whatsapp_number) or normalize_phone_number(phone)
