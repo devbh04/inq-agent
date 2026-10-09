@@ -72,7 +72,7 @@ export default function OutboundDialerTab({ backendUrl }: OutboundDialerTabProps
           Outbound Telephony Dispatcher.
         </h1>
         <p className="text-xs sm:text-sm text-[#6b7280]">
-          Deploy Shubh to initiate outbound calls to shippers, exporters, and logistics managers over regular telephone networks.
+          Deploy Shanaya to initiate outbound calls to shippers, exporters, and logistics managers over regular telephone networks.
         </p>
       </div>
 

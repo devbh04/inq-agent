@@ -113,7 +113,7 @@ INCOTERMS = [
 
 
 def format_domain_knowledge_summary() -> str:
-    """Returns a compact textual reference to embed in Shubh's system prompt."""
+    """Returns a compact textual reference to embed in Shanaya's system prompt."""
     return f"""
 PORT, COUNTRY & CONTAINER KNOWLEDGE:
 - Major Indian Ports (POL): Nhava Sheva (JNPT), Mundra, Chennai, Hazira, Cochin, Tuticorin, Vizag, Kolkata. (Can also accept Indian state/city like Gujarat, Delhi, Punjab, Maharashtra).

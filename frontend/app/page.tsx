@@ -54,7 +54,7 @@ export default function Home() {
     },
     voice: {
       title: "Voice Agent Studio",
-      subtitle: "Interactive in-browser testing with Shubh",
+      subtitle: "Interactive in-browser testing with Shanaya",
     },
     outbound: {
       title: "Outbound Dispatcher",

@@ -1,3 +1,3 @@
 """
-Eximple Shubh LiveKit Agent Package.
+Eximple Shanaya LiveKit Agent Package.
 """

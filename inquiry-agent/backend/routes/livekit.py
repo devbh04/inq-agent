@@ -56,7 +56,7 @@ async def generate_connection_token(req: TokenRequest = TokenRequest()):
 @router.post("/calls/dispatch")
 async def dispatch_outbound_call(payload: OutboundCallRequest):
     """
-    Dispatches the Shubh agent to dial a customer's phone number via Vobiz SIP trunk.
+    Dispatches the Shanaya agent to dial a customer's phone number via Vobiz SIP trunk.
     """
     phone = payload.to_phone.strip()
     if not phone.startswith("+"):
@@ -78,14 +78,15 @@ async def dispatch_outbound_call(payload: OutboundCallRequest):
         "sip_headers": payload.headers or {},
     }
 
+    agent_name = os.getenv("LIVEKIT_AGENT_NAME", "eximple-shanaya")
     try:
         dispatch_req = api.CreateAgentDispatchRequest(
-            agent_name="eximple-shubh",
+            agent_name=agent_name,
             room=room_name,
             metadata=json.dumps(metadata),
         )
         dispatch = await lk_api.agent_dispatch.create_dispatch(dispatch_req)
-        logger.info("Successfully dispatched agent %s to room %s (dispatch_id=%s)", "eximple-shubh", room_name, dispatch.id)
+        logger.info("Successfully dispatched agent %s to room %s (dispatch_id=%s)", agent_name, room_name, dispatch.id)
 
         return {
             "status": "dispatched",

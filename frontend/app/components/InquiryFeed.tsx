@@ -319,7 +319,7 @@ export default function InquiryFeed({ backendUrl }: InquiryFeedProps) {
                               }`}
                             >
                               <span className="text-[10px] text-[#6b7280] mb-0.5 font-medium">
-                                {isAgent ? "Shubh (Voice Agent)" : "Caller"}
+                                {isAgent ? "Shanaya (Voice Agent)" : "Caller"}
                               </span>
                               <div
                                 className={`max-w-[85%] rounded-2xl px-3.5 py-2 leading-relaxed ${

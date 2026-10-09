@@ -162,7 +162,7 @@ export default function VoiceStudioTab({
               <span>Voice Intelligence Studio</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#141414] tracking-tight">
-              Talk to Shubh.
+              Talk to Shanaya.
             </h1>
             <p className="text-xs sm:text-sm text-[#6b7280]">
               Autonomous Hindi-English freight intake specialist with conversational pauses, instant entity capture, and barge-in interruption.
@@ -209,7 +209,7 @@ export default function VoiceStudioTab({
               className="w-full sm:w-auto px-10 py-3.5 rounded-full bg-[#141414] hover:bg-black text-white font-bold text-xs tracking-wider uppercase transition-all shadow-none disabled:opacity-50 cursor-pointer inline-flex items-center justify-center space-x-2.5"
             >
               <Mic className="w-4 h-4" />
-              <span>{connecting ? "Connecting to Shubh..." : "Start Call with Shubh"}</span>
+              <span>{connecting ? "Connecting to Shanaya..." : "Start Call with Shanaya"}</span>
             </button>
           </div>
         ) : (
@@ -229,10 +229,10 @@ export default function VoiceStudioTab({
               <div>
                 <p className="text-base font-bold text-[#141414]">
                   {agentSpeaking
-                    ? "Shubh is speaking..."
+                    ? "Shanaya is speaking..."
                     : userSpeaking
                     ? "Listening to your request..."
-                    : "Shubh is listening..."}
+                    : "Shanaya is listening..."}
                 </p>
                 <p className="text-xs text-[#6b7280] font-mono mt-0.5">Session: {roomName}</p>
               </div>
@@ -297,7 +297,7 @@ export default function VoiceStudioTab({
             <span>FCL vs. LCL Questions</span>
           </h3>
           <p className="leading-relaxed text-[11px]">
-            Shubh will ask if the shipment is full container (FCL) or loose cargo (LCL). Specifying FCL prompts for container size; LCL bypasses container sizing.
+            Shanaya will ask if the shipment is full container (FCL) or loose cargo (LCL). Specifying FCL prompts for container size; LCL bypasses container sizing.
           </p>
         </div>
 
@@ -307,7 +307,7 @@ export default function VoiceStudioTab({
             <span>Country Fallback</span>
           </h3>
           <p className="leading-relaxed text-[11px]">
-            Callers can mention country names (e.g. &quot;Germany&quot;, &quot;Dubai&quot;) without knowing port UN/LOCODEs. Shubh accepts the country gracefully.
+            Callers can mention country names (e.g. &quot;Germany&quot;, &quot;Dubai&quot;) without knowing port UN/LOCODEs. Shanaya accepts the country gracefully.
           </p>
         </div>
 

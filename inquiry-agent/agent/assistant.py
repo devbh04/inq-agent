@@ -1,22 +1,27 @@
 """
-Shubh Voice Agent Class Definition for Eximple.
+Shanaya Voice Agent Class Definition for Eximple.
 """
 
 import logging
 from livekit.agents import Agent
-from .prompts import SHUBH_SYSTEM_PROMPT
+from .prompts import SHANAYA_SYSTEM_PROMPT, SHUBH_SYSTEM_PROMPT
 
-logger = logging.getLogger("shubh-assistant")
+logger = logging.getLogger("shanaya-assistant")
 
 
-class ShubhAgent(Agent):
+class ShanayaAgent(Agent):
     """
-    Shubh - Eximple's Marine Freight Voice Representative.
+    Shanaya - Eximple's Marine Freight Voice Representative.
+    Warm, approachable, and friendly phone sales specialist.
     """
 
     def __init__(self, tools: list) -> None:
         super().__init__(
-            instructions=SHUBH_SYSTEM_PROMPT,
+            instructions=SHANAYA_SYSTEM_PROMPT,
             tools=tools,
         )
-        logger.info("Initialized ShubhAgent with %d tools.", len(tools))
+        logger.info("Initialized ShanayaAgent with %d tools.", len(tools))
+
+
+# Backwards compatibility alias
+ShubhAgent = ShanayaAgent

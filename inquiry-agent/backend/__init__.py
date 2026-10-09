@@ -1,3 +1,3 @@
 """
-Eximple Shubh Backend Package.
+Eximple Shanaya Backend Package.
 """

@@ -1,5 +1,5 @@
 """
-Main Production Worker for Eximple Voice Agent 'Shubh'.
+Main Production Worker for Eximple Voice Agent 'Shanaya'.
 Orchestrates LiveKit AgentServer, Sarvam AI streaming pipeline, Vobiz SIP trunk, active silence handling, and Cost Telemetry.
 """
 
@@ -33,8 +33,8 @@ from livekit.agents.voice.turn import (
 from livekit.plugins import sarvam
 import httpx
 
-from agent.prompts import SHUBH_SYSTEM_PROMPT
-from agent.assistant import ShubhAgent
+from agent.prompts import SHANAYA_SYSTEM_PROMPT, SHUBH_SYSTEM_PROMPT
+from agent.assistant import ShanayaAgent, ShubhAgent
 from agent.tools import build_tools
 from agent.cost_tracker import CallCostTracker
 from agent.sip_dialer import (
@@ -50,7 +50,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
 )
-logger = logging.getLogger("shubh-worker")
+logger = logging.getLogger("shanaya-worker")
 
 BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000")
 
@@ -58,7 +58,7 @@ BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000")
 def setup(proc: JobProcess) -> None:
     """
     Worker initialization function.
-    Configures Sarvam STT and energetic Bulbul v3 TTS with speaker 'shubh'.
+    Configures Sarvam Saaras v4 STT and Bulbul v4 Flash TTS with Ritu (warm persona).
     Prewarms the TTS WebSocket connection to eliminate TLS handshake latency.
     """
     logger.info("Initializing worker process and prewarming Sarvam models...")
@@ -69,11 +69,12 @@ def setup(proc: JobProcess) -> None:
 
     default_lang = os.getenv("SARVAM_DEFAULT_LANGUAGE", "hi-IN")
     stt_prompt = (
-        "Eximple marine freight, ocean shipping, Nhava Sheva, JNPT, Mundra, Chennai, Hazira, Cochin, "
-        "Jebel Ali, Singapore, Rotterdam, Shanghai, Port Klang, 20GP, 40GP, 40HC, Reefer, ISO Tank, LCL, FCL, FOB, CIF"
+        "Eximple ocean freight, Nhava Sheva, JNPT, Mundra, Chennai, Hazira, Cochin, Kolkata, "
+        "Jebel Ali, Singapore, Rotterdam, Shanghai, Port Klang, Hamburg, Antwerp, 20GP, 40GP, 40HC, "
+        "20ft standard, 40ft standard, 40ft high cube, Reefer, ISO Tank, LCL, FCL, container, marine cargo"
     )
 
-    # 1. Sarvam Realtime Streaming STT (saaras:v3-realtime)
+    # 1. Sarvam Realtime Streaming STT (saaras:v4 / codemix mode)
     proc.userdata["stt"] = sarvam.STTStreaming(
         language=default_lang,
         stream_type="fast",         # 500ms chunks instead of 1000ms floor
@@ -86,25 +87,26 @@ def setup(proc: JobProcess) -> None:
         prompt=stt_prompt,
     )
 
-    # 2. Sarvam Bulbul v3 TTS - Energetic Speaker 'shubh' Profile
-    speaker_choice = os.getenv("SARVAM_TTS_SPEAKER", "shubh")
-    pace_choice = float(os.getenv("SARVAM_TTS_PACE", "1.05"))         # 1.05x: natural, warm human tempo
+    # 2. Sarvam Bulbul v4 Flash TTS - Warm & Friendly 'Ritu' Profile
+    tts_model = os.getenv("SARVAM_TTS_MODEL", "bulbul:v4-flash")
+    speaker_choice = os.getenv("SARVAM_TTS_SPEAKER", "ritu_hi_customer_warm")
+    pace_choice = float(os.getenv("SARVAM_TTS_PACE", "1.10"))         # 1.10x: brisk, warm human tempo
     temp_choice = float(os.getenv("SARVAM_TTS_TEMPERATURE", "0.65")) # 0.65: natural prosodic inflection
 
     logger.info(
-        "Configuring Bulbul v3 TTS: speaker=%s, pace=%.2f, temperature=%.2f",
-        speaker_choice, pace_choice, temp_choice
+        "Configuring Sarvam TTS: model=%s, speaker=%s, pace=%.2f, temperature=%.2f",
+        tts_model, speaker_choice, pace_choice, temp_choice
     )
 
     proc.userdata["tts"] = sarvam.TTS(
-        model=os.getenv("SARVAM_TTS_MODEL", "bulbul:v3"),
+        model=tts_model,
         speaker=speaker_choice,
         target_language_code=default_lang,
         speech_sample_rate=24000,
         output_audio_codec="linear16", # Raw PCM passthrough, zero decode delay
         min_buffer_size=60,            # Buffers full semantic clauses for rich human prosody
         max_chunk_length=150,
-        pace=pace_choice,              # Natural, energetic pace
+        pace=pace_choice,              # Friendly, brisk 1.10 pace
         temperature=temp_choice,       # Natural, expressive pitch modulation
     )
 
@@ -133,7 +135,10 @@ async def _report_session_costs(summary: dict) -> None:
         logger.warning("Could not reach backend to save call costs: %s", e)
 
 
-@server.rtc_session(agent_name="eximple-shubh")
+AGENT_NAME = os.getenv("LIVEKIT_AGENT_NAME", "eximple-shanaya")
+
+
+@server.rtc_session(agent_name=AGENT_NAME)
 async def entrypoint(ctx: JobContext) -> None:
     """Main room entrypoint executed whenever a call starts."""
     room_name = ctx.room.name
@@ -198,7 +203,7 @@ async def entrypoint(ctx: JobContext) -> None:
     )
 
     # 4. Agent Instance
-    agent = ShubhAgent(tools=tools)
+    agent = ShanayaAgent(tools=tools)
 
     # 5. Acoustic Echo Cancellation:
     # Telephony carrier handles echo at PSTN gateway -> None (no 3s block)
@@ -222,7 +227,7 @@ async def entrypoint(ctx: JobContext) -> None:
             interruption=InterruptionOptions(
                 enabled=True,
                 mode="vad",
-                min_words=1,    # Word filter: noise bursts cannot interrupt Shubh
+                min_words=1,    # Word filter: noise bursts cannot interrupt Shanaya
                 false_interruption_timeout=1.3,
                 resume_false_interruption=True,
             ),
@@ -240,7 +245,7 @@ async def entrypoint(ctx: JobContext) -> None:
             logger.info("Caller silent for 5.5s. Prompting check-in...")
             asyncio.create_task(
                 session.generate_reply(
-                    instructions="The caller has been silent for 5 seconds. In ONE short polite sentence with natural punctuation, check if they can hear you: 'Hello sir! Kya aap mujhe sun pa rahe hain?'"
+                    instructions="The caller has been silent for 5 seconds. In ONE short polite sentence in Devanagari Hindi + Latin English, check if they can hear you: 'Hello sir! क्या आप मुझे सुन पा रहे हैं?'"
                 )
             )
 
@@ -330,8 +335,8 @@ async def entrypoint(ctx: JobContext) -> None:
     # 11. Handle Outbound Dialing vs Inbound / WebRTC
     # Deterministic opening greeting with full punctuation ensures instant playout (<200ms) and warm, lively human prosody
     GREETING_TEXT = (
-        "Namaste sir! Main Shubh baat kar raha hoon Eximple se. "
-        "Aaj kis route ke liye ocean freight check karna hai aapko?"
+        "नमस्ते sir! मैं Shanaya बात कर रही हूँ Eximple से। "
+        "आज किस route के लिए ocean freight check करना है आपको?"
     )
 
     if phone_number:
@@ -348,7 +353,7 @@ async def entrypoint(ctx: JobContext) -> None:
             ctx.shutdown(reason="outbound_dial_failed")
             return
 
-        logger.info("Call answered by %s. Introducing Shubh with warm, instant speech...", phone_number)
+        logger.info("Call answered by %s. Introducing Shanaya with warm, instant speech...", phone_number)
         await session.say(GREETING_TEXT, allow_interruptions=True)
     else:
         logger.info("Inbound or WebRTC connection in room %s. Greeting caller...", room_name)

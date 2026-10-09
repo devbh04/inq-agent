@@ -62,7 +62,7 @@ export default function OutboundDialer({ backendUrl }: OutboundDialerProps) {
             Outbound Dispatcher.
           </h3>
           <p className="text-xs text-[#6b7280]">
-            Deploy Shubh to contact shippers directly over mobile telephony.
+            Deploy Shanaya to contact shippers directly over mobile telephony.
           </p>
         </div>
       </div>

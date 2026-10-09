@@ -389,7 +389,7 @@ export default function InquiryListTab({
                               }`}
                             >
                               <span className="text-[10px] text-[#6b7280] mb-0.5 font-semibold">
-                                {isAgent ? "Shubh (Voice Agent)" : "Caller"}
+                                {isAgent ? "Shanaya (Voice Agent)" : "Caller"}
                               </span>
                               <div
                                 className={`max-w-[85%] rounded-2xl px-4 py-2.5 leading-relaxed ${

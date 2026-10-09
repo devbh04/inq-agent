@@ -1,5 +1,5 @@
 """
-Asynchronous Non-Blocking Tool Definitions for Eximple Shubh Voice Agent.
+Asynchronous Non-Blocking Tool Definitions for Eximple Shanaya Voice Agent.
 Dispatches inquiries and session events cleanly without stalling agent execution.
 """
 
@@ -151,7 +151,7 @@ def build_tools(ctx: JobContext, session_id: str, caller_number=None):
         asyncio.create_task(_dispatch_vobiz_hangup(ctx, delay_seconds=6.5))
         return (
             "Call disconnection in progress. Speak the warm farewell: "
-            "'Bahut bahut dhanyawad Eximple se judne ke liye sir! Hamari team aapse jald hi contact karegi. Aapka din shubh rahe!' "
+            "'बहुत-बहुत धन्यवाद Eximple से जुड़ने के लिए sir! हमारी team आपसे जल्द ही contact करेगी। आपका दिन बहुत अच्छा रहे!' "
             "Do NOT say anything else or mention lines cutting."
         )
 

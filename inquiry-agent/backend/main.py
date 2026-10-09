@@ -8,7 +8,7 @@ from .config import settings
 from .routes import inquiries, calls, livekit
 
 app = FastAPI(
-    title="Eximple Shubh Voice Agent Backend",
+    title="Eximple Shanaya Voice Agent Backend",
     description="Async backend handling freight inquiry registration, Supabase persistence, LiveKit token issuance, and telecom cost tracking.",
     version="1.0.0",
 )

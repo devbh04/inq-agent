@@ -145,7 +145,7 @@ export default function LiveVoiceRoom({ backendUrl, onCallEnded }: LiveVoiceRoom
           </div>
           <div>
             <h2 className="text-base font-bold text-[#141414] tracking-tight">
-              Talk to Shubh.
+              Talk to Shanaya.
             </h2>
             <p className="text-xs text-[#6b7280]">
               Autonomous freight specialist for container inquiry intake.
@@ -179,7 +179,7 @@ export default function LiveVoiceRoom({ backendUrl, onCallEnded }: LiveVoiceRoom
               Interactive Web Telephony Test.
             </h3>
             <p className="text-[#6b7280] text-xs max-w-sm mt-1">
-              Speak with Shubh to book a container inquiry. Evaluates natural conversational pauses and Hindi-English dialogue.
+              Speak with Shanaya to book a container inquiry. Evaluates natural conversational pauses and Hindi-English dialogue.
             </p>
           </div>
           <button
@@ -188,7 +188,7 @@ export default function LiveVoiceRoom({ backendUrl, onCallEnded }: LiveVoiceRoom
             className="px-8 py-3 rounded-full bg-[#141414] hover:bg-black text-white font-semibold text-xs tracking-wide transition-all flex items-center space-x-2 disabled:opacity-50 cursor-pointer"
           >
             <Mic className="w-4 h-4" />
-            <span>{connecting ? "Connecting to Shubh..." : "Start Call with Shubh"}</span>
+            <span>{connecting ? "Connecting to Shanaya..." : "Start Call with Shanaya"}</span>
           </button>
         </div>
       ) : (
@@ -208,7 +208,7 @@ export default function LiveVoiceRoom({ backendUrl, onCallEnded }: LiveVoiceRoom
 
             <p className="text-sm font-bold text-[#141414] mb-0.5">
               {agentSpeaking
-                ? "Shubh is speaking..."
+                ? "Shanaya is speaking..."
                 : userSpeaking
                 ? "Listening to caller..."
                 : "Awaiting speech..."}

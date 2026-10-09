@@ -1,16 +1,16 @@
-# Eximple "Shubh" Voice Agent & Backend
+# Eximple "Shanaya" Voice Agent & Backend
 
-Production-ready, sub-second latency multilingual (Hinglish-first) voice agent designed for **Eximple** to handle marine freight inquiries via **LiveKit**, **Sarvam AI**, and **Vobiz SIP Trunk**.
+Production-ready, sub-second latency multilingual (Hinglish-first) voice agent designed for **Eximple** to handle marine freight inquiries via **LiveKit**, **Sarvam AI (Saaras v4, Bulbul v4 Flash, Sarvam-105B)**, and **Vobiz SIP Trunk**.
 
 ---
 
 ## Architecture Overview
 
 - **`agent/`**: LiveKit Agents runtime worker utilizing:
-  - **STT**: `sarvam.STTStreaming` (`saaras:v3-realtime`) with `stream_type="fast"` (500ms chunks) & `mode="codemix"`.
+  - **STT**: `sarvam.STTStreaming` (`saaras:v4`) with `stream_type="fast"` (500ms chunks) & `mode="codemix"`.
   - **Server-Side VAD**: `vad_sot_threshold=0.65`, `vad_min_speech_ms=180`, `vad_min_silence_ms=450` (No Silero clash; `vad=None`).
-  - **LLM**: `sarvam.LLM` (`sarvam-105b-conversations`) with marine freight domain knowledge & conversational markers.
-  - **TTS**: `sarvam.TTS` (`bulbul:v3`, speaker `shubh`) with `linear16` audio, `min_buffer_size=30`, and connection `prewarm()`.
+  - **LLM**: `sarvam.LLM` (`sarvam-105b-conversations`) with marine freight domain knowledge & conversational markers in native Devanagari Hindi + Latin English.
+  - **TTS**: `sarvam.TTS` (`bulbul:v4-flash`, speaker `ritu_hi_customer_warm`, pace `1.10`) with `linear16` audio, `min_buffer_size=60`, and connection `prewarm()`.
   - **Telephony**: Vobiz SIP Trunk integration for outbound dialing and inbound correlation.
   - **Cost Tracker**: Telephony pulses (₹0.45 per 60s block) + Sarvam AI per-second, token, and character billing.
 - **`backend/`**: FastAPI asynchronous service:

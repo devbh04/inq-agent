@@ -1,3 +1,3 @@
 """
-Eximple Shubh Backend Routes Package.
+Eximple Shanaya Backend Routes Package.
 """
