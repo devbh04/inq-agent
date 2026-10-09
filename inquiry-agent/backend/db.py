@@ -30,8 +30,48 @@ _inquiries_db: List[InquiryRecord] = []
 _call_sessions_db: List[CallCostReport] = []
 
 
+async def _async_sync_create_to_bcp(record: InquiryRecord) -> None:
+    """Background task to replicate newly created inquiry to BCP."""
+    try:
+        from .services.bcp_client import sync_create_inquiry_to_bcp
+        res = await sync_create_inquiry_to_bcp(record)
+        if res:
+            bcp_id, srn = res
+            record.bcp_inquiry_id = bcp_id
+            record.bcp_reference_number = srn
+
+            # Update in-memory cache
+            for i, inq in enumerate(_inquiries_db):
+                if inq.id == record.id:
+                    _inquiries_db[i] = record
+                    break
+
+            # Update Supabase if available
+            if supabase_client:
+                try:
+                    supabase_client.table("inquiries").update({
+                        "bcp_inquiry_id": bcp_id,
+                        "bcp_reference_number": srn,
+                    }).eq("id", str(record.id)).execute()
+                    logger.info("Updated Supabase record %s with BCP IDs: %s / %s", record.id, bcp_id, srn)
+                except Exception as e:
+                    logger.debug("Could not update BCP IDs in Supabase (column may not exist yet): %s", e)
+    except Exception as e:
+        logger.error("Background BCP create sync failed for inquiry %s: %s", record.id, e)
+
+
+async def _async_sync_update_to_bcp(bcp_id: str, updates: InquiryUpdate, phone: Optional[str]) -> None:
+    """Background task to push inquiry updates to BCP."""
+    try:
+        from .services.bcp_client import sync_update_inquiry_to_bcp
+        await sync_update_inquiry_to_bcp(bcp_id, updates, phone)
+    except Exception as e:
+        logger.error("Background BCP update sync failed for BCP inquiry %s: %s", bcp_id, e)
+
+
 async def save_inquiry(inquiry_data: InquiryCreate) -> InquiryRecord:
-    """Save a newly created inquiry to Supabase or local store."""
+    """Save a newly created inquiry to Supabase or local store and sync to BCP."""
+    import asyncio
     record = InquiryRecord(**inquiry_data.model_dump())
     
     if supabase_client:
@@ -43,6 +83,7 @@ async def save_inquiry(inquiry_data: InquiryCreate) -> InquiryRecord:
             if res.data:
                 logger.info("Saved inquiry to Supabase: %s", record.id)
                 _inquiries_db.insert(0, record)
+                asyncio.create_task(_async_sync_create_to_bcp(record))
                 return record
         except Exception as e:
             logger.warning("Direct insert into Supabase inquiries failed: %s. Trying schema fallback...", e)
@@ -53,21 +94,27 @@ async def save_inquiry(inquiry_data: InquiryCreate) -> InquiryRecord:
                     fallback_payload["notes"] = f"[{lt}] {fallback_payload.get('notes') or ''}".strip()
                 fallback_payload.pop("whatsapp_opt_in", None)
                 fallback_payload.pop("whatsapp_number", None)
+                fallback_payload.pop("bcp_inquiry_id", None)
+                fallback_payload.pop("bcp_reference_number", None)
                 res = supabase_client.table("inquiries").insert(fallback_payload).execute()
                 if res.data:
                     logger.info("Saved inquiry to Supabase with fallback payload: %s", record.id)
                     _inquiries_db.insert(0, record)
+                    asyncio.create_task(_async_sync_create_to_bcp(record))
                     return record
             except Exception as e2:
                 logger.error("Failed inserting into Supabase inquiries table: %s. Storing in memory.", e2)
 
     _inquiries_db.insert(0, record)
     logger.info("Saved inquiry to in-memory store: %s", record.id)
+    import asyncio
+    asyncio.create_task(_async_sync_create_to_bcp(record))
     return record
 
 
 async def update_inquiry(inquiry_id: str, updates: InquiryUpdate) -> Optional[InquiryRecord]:
-    """Update an existing inquiry record by ID."""
+    """Update an existing inquiry record by ID and sync updates to BCP."""
+    import asyncio
     update_data = {k: v for k, v in updates.model_dump(exclude_unset=True).items() if v is not None}
     update_data["updated_at"] = datetime.utcnow().isoformat()
 
@@ -95,11 +142,17 @@ async def update_inquiry(inquiry_id: str, updates: InquiryUpdate) -> Optional[In
                 updated_record = new_record
             break
 
+    # Dispatch update to BCP if linked
+    if updated_record and updated_record.bcp_inquiry_id:
+        phone = updated_record.whatsapp_number or updated_record.caller_number
+        asyncio.create_task(_async_sync_update_to_bcp(updated_record.bcp_inquiry_id, updates, phone))
+
     return updated_record
 
 
 async def update_inquiry_by_session(session_id: str, updates: InquiryUpdate) -> Optional[InquiryRecord]:
-    """Update an existing inquiry record by session ID."""
+    """Update an existing inquiry record by session ID and sync updates to BCP."""
+    import asyncio
     update_data = {k: v for k, v in updates.model_dump(exclude_unset=True).items() if v is not None}
     update_data["updated_at"] = datetime.utcnow().isoformat()
 
@@ -126,6 +179,11 @@ async def update_inquiry_by_session(session_id: str, updates: InquiryUpdate) -> 
             if not updated_record:
                 updated_record = new_record
             break
+
+    # Dispatch update to BCP if linked
+    if updated_record and updated_record.bcp_inquiry_id:
+        phone = updated_record.whatsapp_number or updated_record.caller_number
+        asyncio.create_task(_async_sync_update_to_bcp(updated_record.bcp_inquiry_id, updates, phone))
 
     return updated_record
 

@@ -74,17 +74,30 @@ def setup(proc: JobProcess) -> None:
         "20ft standard, 40ft standard, 40ft high cube, Reefer, ISO Tank, LCL, FCL, container, marine cargo"
     )
 
-    # 1. Sarvam Realtime Streaming STT (saaras:v4 / codemix mode)
-    proc.userdata["stt"] = sarvam.STTStreaming(
+    # 1. Sarvam Streaming STT (saaras:v4 / codemix mode with Fine VAD noise & cross-talk filtering)
+    stt_model = os.getenv("SARVAM_STT_MODEL", "saaras:v4")
+    volume_threshold = float(os.getenv("SARVAM_STT_VOLUME_THRESHOLD", "-35.0"))
+    pos_speech_threshold = float(os.getenv("SARVAM_STT_POSITIVE_SPEECH_THRESHOLD", "0.82"))
+    neg_speech_threshold = float(os.getenv("SARVAM_STT_NEGATIVE_SPEECH_THRESHOLD", "0.35"))
+    interrupt_frames = int(os.getenv("SARVAM_STT_INTERRUPT_MIN_SPEECH_FRAMES", "6"))
+    min_speech_frames = int(os.getenv("SARVAM_STT_MIN_SPEECH_FRAMES", "4"))
+
+    logger.info(
+        "Configuring Sarvam STT: model=%s, mode=codemix, volume_gate=%.1fdB, pos_speech=%.2f, interrupt_frames=%d",
+        stt_model, volume_threshold, pos_speech_threshold, interrupt_frames
+    )
+
+    proc.userdata["stt"] = sarvam.STT(
         language=default_lang,
-        stream_type="fast",         # 500ms chunks instead of 1000ms floor
-        mode="codemix",             # Preserves Hinglish & mixed phrasing accurately
-        endpointing="vad",          # Server-side deep learning Indic VAD
+        model=stt_model,
+        mode="codemix",
         sample_rate=16000,
-        vad_min_silence_ms=450,     # Ideal Indian conversational pause window
-        vad_min_speech_ms=180,      # Rejects clicks, pops, coughs, and DTMF tones
-        vad_sot_threshold=0.65,     # Speech-onset filter rejecting background TV/chatter
-        prompt=stt_prompt,
+        start_speech_volume_threshold=volume_threshold,  # Decibel noise gate: silences voices 1-2m away
+        positive_speech_threshold=pos_speech_threshold,  # 82% confidence required for intentional speech
+        negative_speech_threshold=neg_speech_threshold,  # Silence floor
+        interrupt_min_speech_frames=interrupt_frames,    # 192ms sustained speech before interruption
+        min_speech_frames=min_speech_frames,             # 128ms sustained speech to start a turn
+        high_vad_sensitivity=False,                      # Prevents cutting off on conversational micro-pauses
     )
 
     # 2. Sarvam Bulbul v4 Flash TTS - Engaging, Brisk & Low 'Simran' Sales Profile
@@ -221,14 +234,14 @@ async def entrypoint(ctx: JobContext) -> None:
             turn_detection="stt",
             endpointing=EndpointingOptions(
                 mode="fixed",
-                min_delay=0.22, # 220ms endpoint hold eliminates dead air
+                min_delay=0.30, # 300ms endpoint hold eliminates dead air & micro-pauses
                 max_delay=2.0,
             ),
             interruption=InterruptionOptions(
                 enabled=True,
                 mode="vad",
-                min_words=1,    # Word filter: noise bursts cannot interrupt Shanaya
-                false_interruption_timeout=1.3,
+                min_words=2,    # Word filter: single-word murmurs or 1-2m noise cannot interrupt Shanaya
+                false_interruption_timeout=1.0,
                 resume_false_interruption=True,
             ),
             preemptive_generation=PreemptiveGenerationOptions(enabled=True),

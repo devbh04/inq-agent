@@ -27,6 +27,8 @@ class InquiryRecord(InquiryCreate):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     status: str = "sales_assigned"
     transcript: Optional[List[Dict[str, Any]]] = None
+    bcp_inquiry_id: Optional[str] = Field(None, description="Inquiry UUID in BCP database")
+    bcp_reference_number: Optional[str] = Field(None, description="BCP reference number e.g. EXP-2610-A1B2C3")
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -42,6 +44,8 @@ class InquiryUpdate(BaseModel):
     whatsapp_number: Optional[str] = None
     status: Optional[str] = None
     notes: Optional[str] = None
+    bcp_inquiry_id: Optional[str] = None
+    bcp_reference_number: Optional[str] = None
 
 
 class CallCostReport(BaseModel):

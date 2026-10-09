@@ -39,6 +39,8 @@ ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS caller_number TEXT DEFAULT 'unknown';
 ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS whatsapp_opt_in BOOLEAN DEFAULT TRUE;
 ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS whatsapp_number TEXT;
+ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS bcp_inquiry_id TEXT;
+ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS bcp_reference_number TEXT;
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_inquiries_session_id ON public.inquiries (session_id);
